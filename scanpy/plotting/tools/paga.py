@@ -130,7 +130,7 @@ def paga_compare(
     if show == False: return axs
 
 
-def _compute_pos(adjacency_solid, layout=None, random_state=0, init_pos=None, layout_kwds={}):
+def _compute_pos(adata, adjacency_solid, layout=None, random_state=0, init_pos=None, layout_kwds={}, solid_edges='connectivities', root=0):
     nx_g_solid = nx.Graph(adjacency_solid)
     if layout is None:
         layout = 'fr'
@@ -448,7 +448,8 @@ def paga(
     # compute positions
     if pos is None:
         pos = _compute_pos(
-            adjacency_solid, layout=layout, random_state=random_state, init_pos=init_pos, layout_kwds=layout_kwds)
+            adata, adjacency_solid, layout=layout, random_state=random_state, init_pos=init_pos, layout_kwds=layout_kwds, solid_edges=solid_edges,
+            root=root)
 
     if plot:
         if ax is None:
