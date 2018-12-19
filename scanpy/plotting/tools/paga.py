@@ -387,6 +387,8 @@ def paga(
     pl.paga_compare
     pl.paga_path
     """
+    # Rename for compatibility
+    node_labels = labels
     if groups is not None:  # backwards compat
         labels = groups
         logg.warn('`groups` is deprecated in `pl.paga`: use `labels` instead')
@@ -457,7 +459,7 @@ def paga(
 
         if len(colors) == 1 and not isinstance(axs, list):
             axs = [axs]
-        
+
         for icolor, c in enumerate(colors):
             if title[icolor] is not None:
                 axs[icolor].set_title(title[icolor])
