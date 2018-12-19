@@ -29,3 +29,6 @@ if anndata.__version__ != '0+unknown':
         raise ImportError('Scanpy {} needs anndata version >=0.6.10, not {}.\n'
                           'Run `pip install anndata -U --no-deps`.'
                           .format(__version__, anndata.__version__))
+
+
+print("This is the special Jonas devel version of Scanpy")
