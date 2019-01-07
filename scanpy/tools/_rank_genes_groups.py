@@ -9,7 +9,7 @@ from scipy.sparse import issparse
 from .. import utils
 from .. import settings
 from .. import logging as logg
-from ..preprocessing import simple
+from ..preprocessing._simple import _get_mean_var
 
 
 def rank_genes_groups(
@@ -44,15 +44,15 @@ def rank_genes_groups(
         a group identifier, compare with respect to this group.
     n_genes : `int`, optional (default: 100)
         The number of genes that appear in the returned tables.
-    method : {'logreg', 't-test', 'wilcoxon', 't-test_overestim_var'}, optional (default: 't-test_overestim_var')
+    method : `{'logreg', 't-test', 'wilcoxon', 't-test_overestim_var'}`, optional (default: 't-test_overestim_var')
         If 't-test', uses t-test, if 'wilcoxon', uses Wilcoxon-Rank-Sum. If
         't-test_overestim_var', overestimates variance of each group. If
         'logreg' uses logistic regression, see [Ntranos18]_, `here
         <https://github.com/theislab/scanpy/issues/95>`__ and `here
         <http://www.nxn.se/valent/2018/3/5/actionable-scrna-seq-clusters>`__, for
         why this is meaningful.
-    corr_method : {'benjamini-hochberg', 'bonferroni'}, optional (default: 'benjamini-hochberg')
-        P-value correction method. Used only for 't-test', 't-test_overestim_var',
+    corr_method : `{'benjamini-hochberg', 'bonferroni'}`, optional (default: 'benjamini-hochberg')
+        p-value correction method. Used only for 't-test', 't-test_overestim_var',
         and 'wilcoxon' methods.
     rankby_abs : `bool`, optional (default: `False`)
         Rank genes by the absolute value of the score, not by the
@@ -67,7 +67,6 @@ def rank_genes_groups(
 
     Returns
     -------
-    Updates `adata` with the following fields.
     names : structured `np.ndarray` (`.uns['rank_genes_groups']`)
         Structured array to be indexed by group id storing the gene
         names. Ordered according to scores.
@@ -78,6 +77,15 @@ def rank_genes_groups(
         Structured array to be indexed by group id storing the log2
         fold change for each gene for each group. Ordered according to
         scores. Only provided if method is 't-test' like.
+    pvals : structured `np.ndarray` (`.uns['rank_genes_groups']`)
+        p-values.
+    pvals_adj : structured `np.ndarray` (`.uns['rank_genes_groups']`)
+        Corrected p-values.
+
+    Notes
+    -----
+    There are slight inconsistencies depending on whether sparse
+    or dense data are passed. See `here <https://github.com/theislab/scanpy/blob/master/scanpy/tests/test_rank_genes_groups.py>`__.
     """
     if 'only_positive' in kwds:
         rankby_abs = not kwds.pop('only_positive')  # backwards compat
@@ -158,7 +166,7 @@ def rank_genes_groups(
         means = np.zeros((n_groups, n_genes))
         vars = np.zeros((n_groups, n_genes))
         for imask, mask in enumerate(groups_masks):
-            means[imask], vars[imask] = simple._get_mean_var(X[mask])
+            means[imask], vars[imask] = _get_mean_var(X[mask])
         # test each either against the union of all other groups or against a
         # specific group
         for igroup in range(n_groups):
@@ -167,7 +175,7 @@ def rank_genes_groups(
             else:
                 if igroup == ireference: continue
                 else: mask_rest = groups_masks[ireference]
-            mean_rest, var_rest = simple._get_mean_var(X[mask_rest])
+            mean_rest, var_rest = _get_mean_var(X[mask_rest])
             ns_group = ns[igroup]  # number of observations in group
             if method == 't-test': ns_rest = np.where(mask_rest)[0].size
             elif method == 't-test_overestim_var': ns_rest = ns[igroup]  # hack for overestimating the variance for small groups
@@ -191,7 +199,7 @@ def rank_genes_groups(
                 pvals[np.isnan(pvals)] = 1  # set Nan values to 1 to properly convert using Benhjamini Hochberg
                 _, pvals_adj, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
             elif corr_method == 'bonferroni':
-                pvals_adj = pvals * n_genes
+                pvals_adj = np.minimum(pvals * n_genes, 1.0)
 
             scores_sort = np.abs(scores) if rankby_abs else scores
             partition = np.argpartition(scores_sort, -n_genes_user)[-n_genes_user:]
@@ -243,11 +251,11 @@ def rank_genes_groups(
         # First loop: Loop over all genes
         if reference != 'rest':
             for imask, mask in enumerate(groups_masks):
-                means[imask], vars[imask] = simple._get_mean_var(X[mask])  # for fold-change
+                means[imask], vars[imask] = _get_mean_var(X[mask])  # for fold-change
                 if imask == ireference: continue
                 else: mask_rest = groups_masks[ireference]
                 ns_rest = np.where(mask_rest)[0].size
-                mean_rest, var_rest = simple._get_mean_var(X[mask_rest]) # for fold-change
+                mean_rest, var_rest = _get_mean_var(X[mask_rest]) # for fold-change
                 if ns_rest <= 25 or ns[imask] <= 25:
                     logg.hint('Few observations in a group for '
                               'normal approximation (<=25). Lower test accuracy.')
@@ -294,7 +302,7 @@ def rank_genes_groups(
                     pvals[np.isnan(pvals)] = 1  # set Nan values to 1 to properly convert using Benhjamini Hochberg
                     _, pvals_adj, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
                 elif corr_method == 'bonferroni':
-                    pvals_adj = pvals * n_genes
+                    pvals_adj = np.minimum(pvals * n_genes, 1.0)
 
                 mean_rest[mean_rest == 0] = 1e-9  # set 0s to small value
                 foldchanges = (means[imask] + 1e-9) / mean_rest
@@ -337,9 +345,9 @@ def rank_genes_groups(
                 left = right + 1
 
             for imask, mask in enumerate(groups_masks):
-                means[imask], vars[imask] = simple._get_mean_var(X[mask]) #for fold-change
+                means[imask], vars[imask] = _get_mean_var(X[mask]) #for fold-change
                 mask_rest = ~groups_masks[imask]
-                mean_rest, var_rest = simple._get_mean_var(X[mask_rest]) #for fold-change
+                mean_rest, var_rest = _get_mean_var(X[mask_rest]) #for fold-change
 
                 scores[imask, :] = (scores[imask, :] - (ns[imask] * (n_cells + 1) / 2)) / sqrt(
                     (ns[imask] * (n_cells - ns[imask]) * (n_cells + 1) / 12))
@@ -350,7 +358,7 @@ def rank_genes_groups(
                     pvals[np.isnan(pvals)] = 1  # set Nan values to 1 to properly convert using Benhjamini Hochberg
                     _, pvals_adj, _, _ = multipletests(pvals, alpha=0.05, method='fdr_bh')
                 elif corr_method == 'bonferroni':
-                    pvals_adj = pvals * n_genes
+                    pvals_adj = np.minimum(pvals * n_genes, 1.0)
 
                 mean_rest[mean_rest == 0] = 1e-9  # set 0s to small value
                 foldchanges = (means[imask] + 1e-9) / mean_rest

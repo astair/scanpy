@@ -1,24 +1,30 @@
-.. automodule:: scanpy.api
+.. automodule:: scanpy
 
 API
 ===
 
 
-Import Scanpy's high-level API as::
+Import Scanpy as::
 
-   import scanpy.api as sc
+   import scanpy as sc
+
+.. note::
+
+   Wrappers to external functionality are found in :mod:`scanpy.external`. Previously, both core and external functionality were available through :mod:`scanpy.api` (deprecated since 1.3.7).
+
 
 Preprocessing: PP
 ------------------
 
 Filtering of highly-variable genes, batch-effect correction, per-cell normalization, preprocessing recipes.
 
+Any transformation of the data matrix that is not a *tool*. Other than *tools*, preprocessing steps usually don't return an easily interpretable annotation, but perform a basic transformation on the data matrix.
+
 Basic Preprocessing
 ~~~~~~~~~~~~~~~~~~~
 
-For visual quality control, see :func:`~scanpy.api.pl.highest_expr_gens` and
-:func:`~scanpy.api.pl.filter_genes_dispersion` in the :doc:`plotting API
-<plotting>`.
+For visual quality control, see :func:`~scanpy.pl.highest_expr_gens` and
+:func:`~scanpy.pl.filter_genes_dispersion` in :mod:`scanpy.plotting`.
 
 .. autosummary::
    :toctree: .
@@ -49,27 +55,7 @@ Recipes
 Batch effect correction
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Note that a simple batch correction method is available via :func:`pp.regress_out`.
-
-``pp.bbknn`` is just an alias for :func:`bbknn.bbknn`. Refer to it for the documentation.
-
-.. autosummary::
-   :toctree: .
-
-   pp.bbknn
-   pp.mnn_correct
-
-Imputation
-~~~~~~~~~~
-
-Note that the fundamental limitations of imputation are still under `debate
-<https://github.com/theislab/scanpy/issues/189>`__.
-
-.. autosummary::
-   :toctree: .
-
-   pp.dca
-   pp.magic
+Note that a simple batch correction method is available via :func:`pp.regress_out`. Checkout :class:`scanpy.external` for more.
 
 Neighbors
 ~~~~~~~~~
@@ -83,6 +69,8 @@ Neighbors
 Tools: TL
 ----------
 
+Any transformation of the data matrix that is not *preprocessing*. In contrast to a *preprocessing* function, a *tool* usually adds an easily interpretable annotation to the data matrix, which can then be visualized with a corresponding plotting function.
+
 Embeddings
 ~~~~~~~~~~
 
@@ -94,7 +82,6 @@ Embeddings
    tl.umap
    tl.draw_graph
    tl.diffmap
-   tl.phate
 
 Clustering and trajectory inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -106,6 +93,7 @@ Clustering and trajectory inference
    tl.louvain
    tl.dpt
    tl.paga
+
 
 Marker genes
 ~~~~~~~~~~~~
@@ -123,8 +111,6 @@ Gene scores, Cell cycle
 
    tl.score_genes
    tl.score_genes_cell_cycle
-   tl.sandbag
-   tl.cyclone
 
 Simulations
 ~~~~~~~~~~~
@@ -138,9 +124,8 @@ Simulations
 Plotting: PL
 ------------
 
-The plotting :doc:`plotting API <plotting>` largely parallels the ``tl.*`` and
-``pp.*`` functions. For most tools and for some preprocessing functions, you'll
-find a plotting function with the same name.
+The plotting module :class:`scanpy.plotting` largely parallels the ``tl.*`` and a few of the ``pp.*`` functions.
+For most tools and for some preprocessing functions, you'll find a plotting function with the same name.
 
 .. toctree::
    :hidden:
@@ -152,10 +137,9 @@ find a plotting function with the same name.
 Reading
 -------
 
-*Note:* For reading annotation use
-:ref:`pandas.read_… <pandas:/io.rst#io-tools-text-csv-hdf5>` and add
-it to your `AnnData` object. The following read functions are intended for
-the numeric data in the data matrix `X`.
+*Note:* For reading annotation use :ref:`pandas.read_… <pandas:/io.rst#io-tools-text-csv-hdf5>`
+and add it to your :class:`anndata.AnnData` object.
+The following read functions are intended for the numeric data in the data matrix `X`.
 
 Read common file formats using
 
@@ -214,7 +198,7 @@ Represent data as a neighborhood structure, usually a knn graph.
 Settings
 --------
 
-A convenience function for setting some default ``matplotlib.rcParams`` and a
+A convenience function for setting some default :obj:`matplotlib.rcParams` and a
 high-resolution jupyter display backend useful for use in notebooks.
 
 .. autosummary::
@@ -267,10 +251,13 @@ Datasets
    datasets.paul15
    datasets.toggleswitch
 
-Exporting
----------
+
+Further Modules
+---------------
 
 .. autosummary::
    :toctree: .
 
-   export_to.spring_project
+   external
+   api
+   plotting

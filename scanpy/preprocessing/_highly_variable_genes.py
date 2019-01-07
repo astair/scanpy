@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import warnings
 from .. import logging as logg
-from .distributed import materialize_as_ndarray
-from .utils import _get_mean_var
+from ._distributed import materialize_as_ndarray
+from ._utils import _get_mean_var
 
 
 def highly_variable_genes(
@@ -33,17 +33,26 @@ def highly_variable_genes(
     adata : :class:`~anndata.AnnData`
         The annotated data matrix of shape `n_obs` × `n_vars`. Rows correspond
         to cells and columns to genes.
-    min_mean=0.0125, max_mean=3, min_disp=0.5, max_disp=`None` : `float`, optional
-        If `n_top_genes` unequals `None`, these cutoffs for the means and the
+    min_mean : `float`, optional (default: 0.0125)
+        If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
         normalized dispersions are ignored.
-    n_top_genes : `int` or `None` (default: `None`)
+    max_mean : `float`, optional (default: 3)
+        If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+        normalized dispersions are ignored.
+    min_disp : `float`, optional (default: 0.5)
+        If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+        normalized dispersions are ignored.
+    max_disp : `float`, optional (default: `None`)
+        If `n_top_genes` unequals `None`, this and all other cutoffs for the means and the
+        normalized dispersions are ignored.
+    n_top_genes : `int` or `None`, optional (default: `None`)
         Number of highly-variable genes to keep.
-    n_bins : `int` (default: 20)
+    n_bins : `int`, optional (default: 20)
         Number of bins for binning the mean gene expression. Normalization is
         done with respect to each bin. If just a single gene falls into a bin,
         the normalized dispersion is artificially set to 1. You'll be informed
         about this if you set `settings.verbosity = 4`.
-    flavor : {'seurat', 'cell_ranger'}, optional (default: 'seurat')
+    flavor : `{'seurat', 'cell_ranger'}`, optional (default: 'seurat')
         Choose the flavor for computing normalized dispersion. In their default
         workflows, Seurat passes the cutoffs whereas Cell Ranger passes
         `n_top_genes`.
@@ -55,8 +64,8 @@ def highly_variable_genes(
 
     Returns
     -------
-    `None`, `np.recarray`
-        Depending on `inplace` returns calculated metrics (`np.recarray`) or
+    :class:`~numpy.recarray`, `None`
+        Depending on `inplace` returns calculated metrics (:class:`~numpy.recarray`) or
         updates `.var` with the following fields
 
         * `highly_variable` - boolean indicator of highly-variable genes
@@ -66,7 +75,7 @@ def highly_variable_genes(
 
     Notes
     -----
-    This function replaces :func:`~scanpy.api.pp.filter_genes_dispersion`.
+    This function replaces :func:`~scanpy.pp.filter_genes_dispersion`.
     """
     logg.msg('extracting highly variable genes', r=True, v=4)
 
@@ -155,9 +164,9 @@ def highly_variable_genes(
     if inplace or subset:
         logg.hint('added\n'
                   '    \'highly_variable\', boolean vector (adata.var)\n'
-                  '    \'means\', boolean vector (adata.var)\n'
-                  '    \'dispersions\', boolean vector (adata.var)\n'
-                  '    \'dispersions_norm\', boolean vector (adata.var)')
+                  '    \'means\', float vector (adata.var)\n'
+                  '    \'dispersions\', float vector (adata.var)\n'
+                  '    \'dispersions_norm\', float vector (adata.var)')
         adata.var['highly_variable'] = gene_subset
         adata.var['means'] = df['mean'].values
         adata.var['dispersions'] = df['dispersion'].values
