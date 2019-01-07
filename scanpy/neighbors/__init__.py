@@ -1,4 +1,4 @@
-from typing import Union, Optional, Any, Mapping, Callable
+from typing import Union, Optional, Any, Mapping, Callable, Iterable
 
 import numpy as np
 import scipy
@@ -28,7 +28,8 @@ def neighbors(
     method: str = 'umap',
     metric: Union[str, Callable[[np.ndarray, np.ndarray], float]] = 'euclidean',
     metric_kwds: Mapping[str, Any] = {},
-    copy: bool = False
+    copy: bool = False,
+    directed_groups: Optional[Iterable[int]] = None
 ) -> Optional[AnnData]:
     """\
     Compute a neighborhood graph of observations [McInnes18]_.
@@ -88,7 +89,7 @@ def neighbors(
     neighbors.compute_neighbors(
         n_neighbors=n_neighbors, knn=knn, n_pcs=n_pcs, use_rep=use_rep,
         method=method, metric=metric, metric_kwds=metric_kwds,
-        random_state=random_state)
+        random_state=random_state, directed_groups=directed_groups)
     adata.uns['neighbors'] = {}
     adata.uns['neighbors']['params'] = {'n_neighbors': n_neighbors, 'method': method}
     adata.uns['neighbors']['distances'] = neighbors.distances
@@ -379,6 +380,27 @@ def get_indices_distances_from_dense_matrix(D, n_neighbors):
     return indices, distances
 
 
+def directed_nn(arr, n_neighbors, directed_groups, idx):
+    curr_group = directed_groups[idx]
+    hi = curr_group + 1
+    lo = curr_group - 1
+    allowed_idx = np.nonzero(
+        (directed_groups <= hi) & (directed_groups >= lo))[0]
+    allowed = arr[allowed_idx]
+    indices = np.argpartition(allowed, n_neighbors-1)[:n_neighbors]
+    return allowed_idx[indices]
+
+
+def get_directed_indices_distances_from_dense_matrix(D, n_neighbors,
+        directed_groups):
+    sample_range = np.arange(D.shape[0])[:, None]
+    indices = np.array([directed_nn(row, n_neighbors, directed_groups, i)
+        for i, row in enumerate(D)])
+    indices = indices[sample_range, np.argsort(D[sample_range, indices])]
+    distances = D[sample_range, indices]
+    return indices, distances
+
+
 def _backwards_compat_get_full_X_diffmap(adata):
     if 'X_diffmap0' in adata.obs:
         return np.c_[adata.obs['X_diffmap0'].values[:, None],
@@ -592,7 +614,8 @@ class Neighbors:
         random_state: Optional[Union[RandomState, int]] = 0,
         write_knn_indices: bool = False,
         metric: str = 'euclidean',
-        metric_kwds: Mapping[str, Any] = {}
+        metric_kwds: Mapping[str, Any] = {},
+        directed_groups: Optional[Iterable[int]] = None
     ) -> None:
         """\
         Compute distances and connectivities of neighbors.
@@ -628,10 +651,16 @@ class Neighbors:
         X = choose_representation(self._adata, use_rep=use_rep, n_pcs=n_pcs)
         # neighbor search
         use_dense_distances = (metric == 'euclidean' and X.shape[0] < 8192) or knn == False
-        if use_dense_distances:
+        if use_dense_distances or directed_groups is not None:
             _distances = pairwise_distances(X, metric=metric, **metric_kwds)
-            knn_indices, knn_distances = get_indices_distances_from_dense_matrix(
-                _distances, n_neighbors)
+            if directed_groups is not None:
+                knn_indices, knn_distances = get_directed_indices_distances_from_dense_matrix(
+                    _distances, n_neighbors, directed_groups
+                )
+            else:
+                knn_indices, knn_distances = get_indices_distances_from_dense_matrix(
+                    _distances, n_neighbors
+                )
             if knn:
                 self._distances = get_sparse_matrix_from_indices_distances_numpy(
                     knn_indices, knn_distances, X.shape[0], n_neighbors)
