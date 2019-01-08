@@ -85,6 +85,9 @@ def neighbors(
     adata = adata.copy() if copy else adata
     if adata.isview:  # we shouldn't need this here...
         adata._init_as_actual(adata.copy())
+    if directed_groups is not None:
+        method = 'directed'
+        print('Directed groups were defined, setting method to \'directed\'')
     neighbors = Neighbors(adata)
     neighbors.compute_neighbors(
         n_neighbors=n_neighbors, knn=knn, n_pcs=n_pcs, use_rep=use_rep,
@@ -641,7 +644,7 @@ class Neighbors:
                       .format(n_neighbors))
         if method == 'umap' and not knn:
             raise ValueError('`method = \'umap\' only with `knn = True`.')
-        if method not in {'umap', 'gauss'}:
+        if method not in {'umap', 'gauss', 'directed'}:
             raise ValueError('`method` needs to be \'umap\' or \'gauss\'.')
         if self._adata.shape[0] >= 10000 and not knn:
             logg.warn(
@@ -685,7 +688,7 @@ class Neighbors:
                 knn_indices, knn_distances, self._adata.shape[0], self.n_neighbors)
         # overwrite the umap connectivities if method is 'gauss'
         # self._distances is unaffected by this
-        if method == 'gauss':
+        if method in {'gauss', 'directed'}:
             self._compute_connectivities_diffmap()
         logg.msg('computed connectivities', t=True, v=4)
         self._number_connected_components = 1
